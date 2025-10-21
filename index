@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Presença em Treinamento</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px 0; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 100%; max-width: 800px; }
+        h2 { text-align: center; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .signature-pad-container { border: 1px solid #ddd; border-radius: 4px; position: relative; height: 200px; }
+        canvas { width: 100%; height: 100%; display: block; }
+        .buttons-container { display: flex; justify-content: space-between; margin-top: 20px; }
+        button { background-color: #007bff; color: white; padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; transition: background-color 0.3s; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #a0a0a0; cursor: not-allowed; }
+        #clear-signature { background-color: #6c757d; }
+        #clear-signature:hover { background-color: #5a6268; }
+        .summary { display: none; margin-top: 30px; }
+        .summary h3 { text-align: center; }
+        .summary p { font-size: 16px; margin: 10px 0; }
+        .summary img { display: block; margin: 20px auto; border: 1px solid #ddd; border-radius: 4px; }
+        
+        /* NOVO ESTILO: Bloco de informações do treinamento */
+        .training-info {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .training-info p {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <div id="main-content">
+        <h2>Registro de Presença em Treinamento</h2>
+
+        <div class="training-info">
+            <p><strong>Treinamento:</strong> Processo de Baixa via Solicitação</p>
+            <p><strong>Instrutor:</strong> Luis Correia</p>
+            <p><strong>Data:</strong> 21/10/2025</p>
+            <p><strong>Carga Horária:</strong> 60 min</p>
+        </div>
+        <p style="text-align: center;">Por favor, preencha seus dados e assine abaixo para confirmar sua presença.</p>
+        
+        <fieldset id="signature-fieldset">
+            <div class="form-group">
+                <label for="fullName">Nome Completo:</label>
+                <input type="text" id="fullName" name="fullName" required>
+            </div>
+            <div class="form-group">
+                <label for="cpf">CPF:</label>
+                <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00" required>
+            </div>
+            <div class="form-group">
+                <label for="unidade">Unidade:</label>
+                <select id="unidade" name="unidade" required>
+                    <option value="">Selecione a Unidade</option>
+                    <option value="TPA">TPA</option><option value="TBA">TBA</option><option value="TCV">TCV</option><option value="ABC">ABC</option><option value="API">API</option><option value="TBL">TBL</option><option value="TSJ">TSJ</option><option value="TPH">TPH</option><option value="MCD">MCD</option><option value="TCG">TCG</option><option value="TCA">TCA</option><option value="CTD">CTD</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="signature">Campo para assinatura (livre):</label>
+                <div class="signature-pad-container">
+                    <canvas id="signature-pad"></canvas>
+                </div>
+            </div>
+            <div class="buttons-container">
+                <button id="clear-signature">Limpar Assinatura</button>
+                <button id="submit-signature">Registrar Presença</button>
+            </div>
+        </fieldset>
+    </div>
+    
+    <div id="summary-container" class="summary">
+        <h3>✅ Presença Registrada com Sucesso!</h3>
+        
+        <p><strong>Treinamento:</strong> <span id="summary-trainingName"></span></p>
+        <p><strong>Instrutor:</strong> <span id="summary-instructor"></span></p>
+        <p><strong>Data:</strong> <span id="summary-trainingDate"></span></p>
+        <p><strong>Carga Horária:</strong> <span id="summary-duration"></span></p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        
+        <p><strong>Nome Completo:</strong> <span id="summary-fullName"></span></p>
+        <p><strong>CPF:</strong> <span id="summary-cpf"></span></p>
+        <p><strong>Unidade:</strong> <span id="summary-unidade"></span></p>
+        <p><strong>Assinatura Registrada:</strong></p>
+        <img id="summary-signature" src="" alt="Assinatura Digital">
+        <p style="text-align: center; margin-top: 20px;"><em>Seu registro foi salvo. Você já pode fechar esta janela.</em></p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const canvas = document.getElementById('signature-pad');
+        const signaturePad = new SignaturePad(canvas);
+
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            signaturePad.clear();
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        const clearButton = document.getElementById('clear-signature');
+        clearButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            signaturePad.clear();
+        });
+
+        const signatureFieldset = document.getElementById('signature-fieldset');
+        signatureFieldset.disabled = false;
+        signaturePad.on();
+
+        // ****** SEU CÓDIGO DE ENVIO ATUALIZADO ******
+        const submitButton = document.getElementById('submit-signature');
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxCfwvAh2YHn64xn-obA25b_d65bph72OIUfrG4tS1jSwQ3G5DP0uR-eCgrjWUqfAUO/exec'; // Mantenha sua URL
+
+        submitButton.addEventListener('click', (event) => {
+            event.preventDefault();
+
+            // --- DADOS ESTÁTICOS DO TREINAMENTO ---
+            const trainingName = "Processo de Baixa via Solicitação";
+            const instructor = "Luis Correia";
+            const trainingDate = "21/10/2025";
+            const duration = "60 min";
+            // --- FIM DOS DADOS ESTÁTICOS ---
+            
+            // Campos coletados do usuário
+            const fullName = document.getElementById('fullName').value.trim();
+            const cpf = document.getElementById('cpf').value.trim();
+            const unidade = document.getElementById('unidade').value.trim();
+
+            // Validação atualizada (remove 'trainingName')
+            if (!fullName || !cpf || !unidade) {
+                alert('Por favor, preencha todos os campos do formulário (Nome, CPF e Unidade).');
+                return;
+            }
+
+            if (signaturePad.isEmpty()) {
+                alert('Por favor, forneça sua assinatura.');
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Enviando...';
+
+            const signatureDataURL = signaturePad.toDataURL('image/png');
+            
+            // Objeto de dados atualizado com informações estáticas
+            const formData = {
+                trainingName: trainingName,
+                instructor: instructor,
+                trainingDate: trainingDate,
+                duration: duration,
+                fullName: fullName,
+                cpf: cpf,
+                unidade: unidade,
+                signature: signatureDataURL
+            };
+
+            fetch(scriptURL, {
+                method: 'POST',
+                body: JSON.stringify(formData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Resumo atualizado para incluir dados estáticos
+                    document.getElementById('summary-trainingName').textContent = trainingName;
+                    document.getElementById('summary-instructor').textContent = instructor;
+                    document.getElementById('summary-trainingDate').textContent = trainingDate;
+                    document.getElementById('summary-duration').textContent = duration;
+
+                    document.getElementById('summary-fullName').textContent = fullName;
+                    document.getElementById('summary-cpf').textContent = cpf;
+                    document.getElementById('summary-unidade').textContent = unidade;
+                    document.getElementById('summary-signature').src = signatureDataURL;
+
+                    document.getElementById('main-content').style.display = 'none';
+                    document.getElementById('summary-container').style.display = 'block';
+                } else {
+                    alert('Ocorreu um erro ao enviar sua assinatura: ' + data.message);
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Registrar Presença';
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Ocorreu um erro de conexão. Tente novamente.');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Registrar Presença';
+            });
+        });
+
+        // ****** MÁSCARAS DOS CAMPOS ******
+        const cpfInput = document.getElementById('cpf');
+        cpfInput.addEventListener('input', () => {
+            let value = cpfInput.value.replace(/\D/g, '');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            cpfInput.value = value.slice(0, 14);
+        });
+        
+    });
+</script>
+
+</body>
+</html>
